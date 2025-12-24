@@ -1,0 +1,639 @@
+{% comment %}
+  Combo Builder: Banner + Preview + Products + Quantity Selector
+{% endcomment %}
+
+{% schema %}
+{
+  "name": "Combo Builder",
+  "target": "section",
+  "settings": [
+    { "type": "image_picker", "id": "banner_image", "label": "Banner Image (Desktop)" },
+    { "type": "image_picker", "id": "banner_image_mobile", "label": "Banner Image (Mobile)" },
+    { "type": "text", "id": "collection_title", "label": "Collection Title", "default": "Build Your Combo" },
+    { "type": "textarea", "id": "collection_description", "label": "Collection Description", "default": "Select your favorite products and enjoy exclusive discounts" },
+    { "type": "collection", "id": "collection", "label": "Select Collection" },
+    { "type": "range", "id": "max_selections", "label": "Max Selections", "min": 1, "max": 10, "step": 1, "default": 3 }
+  ]
+}
+{% endschema %}
+
+{% assign cfg = block.settings %}
+
+{% comment %} Use hardcoded defaults for styling - customize via app instead {% endcomment %}
+{% assign container_padding_desktop = 0 %}
+{% assign container_padding_mobile = 0 %}
+{% assign banner_width_desktop = 100 %}
+{% assign banner_height_desktop = 300 %}
+{% assign banner_width_mobile = 100 %}
+{% assign banner_height_mobile = 200 %}
+{% assign banner_padding_top = 0 %}
+{% assign banner_padding_bottom = 10 %}
+{% assign preview_bg_color = "#e0ca9b" %}
+{% assign preview_text_color = "#333" %}
+{% assign preview_item_border_color = "#333" %}
+{% assign preview_height = 100 %}
+{% assign preview_font_size = 14 %}
+{% assign preview_item_size = 60 %}
+{% assign preview_border_radius = 5 %}
+{% assign preview_padding = 20 %}
+{% assign preview_padding_top = 0 %}
+{% assign preview_padding_bottom = 10 %}
+{% assign preview_alignment = "center" %}
+{% assign preview_alignment_mobile = "flex-start" %}
+{% assign preview_original_price_size = 14 %}
+{% assign preview_discount_price_size = 18 %}
+{% assign preview_original_price_color = "#999" %}
+{% assign preview_discount_price_color = "#000" %}
+{% assign header_padding_top = 0 %}
+{% assign header_padding_bottom = 10 %}
+{% assign products_padding_top = 0 %}
+{% assign products_padding_bottom = 0 %}
+{% assign product_card_padding = 10 %}
+{% assign mobile_columns = "2" %}
+{% assign card_width_desktop = 250 %}
+{% assign card_width_mobile = 200 %}
+{% assign product_image_height_desktop = 250 %}
+{% assign product_image_height_mobile = 200 %}
+{% assign product_title_size_desktop = 14 %}
+{% assign product_title_size_mobile = 14 %}
+{% assign product_price_size_desktop = 16 %}
+{% assign product_price_size_mobile = 16 %}
+{% assign card_border_radius = 10 %}
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+.combo-builder-container {
+  width: 100%;
+  max-width: 100%;
+  padding: 0 {{ container_padding_desktop }}px;
+  margin: 0;
+  /* Reserve space so the sticky preview bar doesn't cover bottom content */
+  padding-bottom: calc({{ preview_height }}px + {{ preview_padding_top }}px + {{ preview_padding_bottom }}px + 40px);
+}
+
+/* Banner */
+.combo-banner {
+  width: {{ banner_width_desktop }}%;
+  height: {{ banner_height_desktop }}px;
+  overflow: hidden;
+  padding-top: {{ banner_padding_top }}px;
+  padding-bottom: {{ banner_padding_bottom }}px;
+  border-radius: 0;
+}
+
+.combo-banner-desktop {
+  display: block;
+}
+
+.combo-banner-mobile {
+  display: none;
+}
+
+.combo-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .combo-builder-container {
+    padding: 0 {{ container_padding_mobile }}px;
+  }
+  
+  .combo-banner {
+    width: {{ banner_width_mobile }}%;
+    height: {{ banner_height_mobile }}px;
+  }
+  
+  .combo-banner-desktop {
+    display: none;
+  }
+  
+  .combo-banner-mobile {
+    display: block;
+  }
+}
+
+/* Preview Bar */
+#preview-bar {
+  padding-top: {{ preview_padding_top }}px;
+  padding-bottom: {{ preview_padding_bottom }}px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 100vw;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.12);
+}
+
+.preview-fixed {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}
+
+.preview-items {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 6px;
+}
+
+.preview-plus {
+  font-size: 20px;
+  font-weight: 600;
+  color: {{ preview_text_color }};
+}
+
+.preview-item-img {
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+}
+
+.preview-item-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-item-placeholder {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.preview-pricing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.preview-checkout-btn {
+  background: #000;
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.preview-checkout-btn:hover {
+  background: #333;
+}
+
+/* Title & Description */
+.combo-header {
+  padding-top: {{ header_padding_top }}px;
+  padding-bottom: {{ header_padding_bottom }}px;
+}
+
+.combo-header h1 {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+.combo-header p {
+  font-size: 16px;
+  color: #666;
+  line-height: 1.5;
+}
+
+/* Products Grid */
+.combo-wrapper {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax({{ card_width_desktop }}px, 1fr));
+  gap: 12px;
+  padding-top: {{ products_padding_top }}px;
+  padding-bottom: {{ products_padding_bottom }}px;
+}
+
+.product-card {
+  border: 2px solid #eee;
+  border-radius: {{ card_border_radius }}px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  background: white;
+}
+
+.product-card.selected {
+  border-color: #000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.product-image {
+  width: 100%;
+  height: {{ product_image_height_desktop }}px;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-info {
+  padding: {{ product_card_padding }}px;
+  flex-grow: 1;
+}
+
+.product-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+  font-size: {{ product_title_size_desktop }}px;
+  line-height: 1.4;
+}
+
+.product-price {
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #000;
+  font-size: {{ product_price_size_desktop }}px;
+}
+
+.variant-select-wrapper {
+  margin-bottom: 10px;
+}
+
+.variant-select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+/* Quantity Selector */
+.qty-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid #eee;
+}
+
+.qty-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.qty-btn:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.qty-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.qty-display {
+  flex-grow: 1;
+  text-align: center;
+  font-weight: 600;
+  min-width: 30px;
+}
+
+.add-to-cart-btn {
+  background: #000;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.add-to-cart-btn:hover {
+  background: #333;
+}
+
+.add-to-cart-btn.added {
+  background: #28a745;
+}
+
+@media (max-width: 768px) {
+  .combo-wrapper {
+    grid-template-columns: repeat({{ mobile_columns }}, minmax({{ card_width_mobile }}px, 1fr));
+  }
+  
+  .preview-items {
+    width: 100%;
+    justify-content: {{ preview_alignment_mobile }};
+  }
+
+  .product-image {
+    height: {{ product_image_height_mobile }}px;
+  }
+  
+  .product-title {
+    font-size: {{ product_title_size_mobile }}px;
+  }
+
+  .product-price {
+    font-size: {{ product_price_size_mobile }}px;
+  }
+  
+  .preview-pricing {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+</style>
+
+<div class="combo-builder-container">
+  <!-- Banner -->
+  {% if cfg.banner_image %}
+    <div class="combo-banner combo-banner-desktop">
+      <img src="{{ cfg.banner_image | image_url: width: 1200 }}" alt="Combo Banner Desktop">
+    </div>
+  {% endif %}
+  
+  {% if cfg.banner_image_mobile %}
+    <div class="combo-banner combo-banner-mobile">
+      <img src="{{ cfg.banner_image_mobile | image_url: width: 800 }}" alt="Combo Banner Mobile">
+    </div>
+  {% elsif cfg.banner_image %}
+    <div class="combo-banner combo-banner-mobile">
+      <img src="{{ cfg.banner_image | image_url: width: 800 }}" alt="Combo Banner">
+    </div>
+  {% endif %}
+
+  <!-- Preview Bar -->
+  <div id="preview-bar" style="background: {{ preview_bg_color }}; color: {{ preview_text_color }}; border-radius: {{ preview_border_radius }}px; padding: {{ preview_padding }}px; min-height: {{ preview_height }}px; font-size: {{ preview_font_size }}px; justify-content: {{ preview_alignment }};">
+    <div class="preview-items" id="previewItems">
+      {% for i in (1..cfg.max_selections) %}
+        <div class="preview-item-placeholder" id="slot{{ i }}" style="width: {{ preview_item_size }}px; height: {{ preview_item_size }}px; border: 2px dashed {{ preview_item_border_color }}; color: {{ preview_item_border_color }};">+</div>
+      {% endfor %}
+    </div>
+    <div class="preview-pricing" id="previewPricing" style="display: none; flex-direction: row; gap: 6px; align-items: center;">
+      <span style="font-size: {{ preview_original_price_size }}px; color: {{ preview_original_price_color }};">
+        Total price = <span id="previewOriginal" class="preview-original" style="text-decoration: line-through;">Rs.0</span>
+      </span>
+      <span id="previewDiscounted" class="preview-discounted" style="font-size: {{ preview_discount_price_size }}px; color: {{ preview_discount_price_color }}; font-weight: 700;">Rs.0</span>
+      <button id="previewCheckout" class="preview-checkout-btn" type="button">Proceed to checkout</button>
+    </div>
+  </div>
+
+  <!-- Title & Description -->
+  <div class="combo-header">
+    <h1>{{ cfg.collection_title }}</h1>
+    <p>{{ cfg.collection_description }}</p>
+  </div>
+
+  <!-- Products -->
+  <div class="combo-wrapper">
+    {% for product in collections[cfg.collection].products %}
+      {% assign first_variant = product.variants.first %}
+      {% assign first_variant_image = first_variant.featured_image | default: product.featured_image %}
+      <div class="product-card combo-card" data-base-title="{{ product.title }}" data-id="{{ first_variant.id }}" data-price="{{ first_variant.price | money_without_currency | replace: ',', '' }}" data-image="{{ first_variant_image | image_url: width: 300 }}" data-title="{{ product.title }}">
+        <div class="product-image">
+          <img src="{{ first_variant_image | image_url: width: 300 }}" alt="{{ product.title }}">
+        </div>
+        <div class="product-info">
+          <div class="product-title">{{ product.title }}</div>
+          <div class="product-price">{{ first_variant.price | money }}</div>
+          {% if product.variants.size > 1 %}
+            <div class="variant-select-wrapper">
+              <label class="variant-label">Choose option</label>
+              <select class="variant-select">
+                {% for variant in product.variants %}
+                  {% assign v_image = variant.featured_image | default: product.featured_image %}
+                  <option value="{{ variant.id }}"
+                    data-price="{{ variant.price | money_without_currency | replace: ',', '' }}"
+                    data-display="{{ variant.price | money }}"
+                    data-image="{{ v_image | image_url: width: 300 }}"
+                    data-title="{{ variant.title }}"
+                    {% if forloop.first %}selected{% endif %}>
+                    {{ variant.title }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+          {% endif %}
+        </div>
+        <div class="qty-selector">
+          <button class="qty-btn decrement-btn" disabled>−</button>
+          <div class="qty-display qty-display-val">0</div>
+          <button class="qty-btn increment-btn">+</button>
+          <button class="add-to-cart-btn">Add</button>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<form id="combo-form" method="post" action="/cart/add" style="display: none;"></form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const maxSelections = {{ cfg.max_selections }};
+  const selected = {};
+  const checkoutBtn = document.getElementById('previewCheckout');
+  const previewBar = document.getElementById('preview-bar');
+  const previewBarTop = previewBar ? previewBar.offsetTop : 0;
+
+  function updatePreview() {
+    const previewItems = document.getElementById('previewItems');
+    previewItems.innerHTML = '';
+    
+    let totalPrice = 0;
+    let itemCount = 0;
+    
+    Object.values(selected).forEach(item => {
+      for (let i = 0; i < item.qty; i++) {
+        if (itemCount < maxSelections) {
+          if (itemCount > 0) {
+            const plus = document.createElement('span');
+            plus.className = 'preview-plus';
+            plus.textContent = '+';
+            previewItems.appendChild(plus);
+          }
+          const div = document.createElement('div');
+          div.className = 'preview-item-img';
+          div.style.width = '{{ preview_item_size }}px';
+          div.style.height = '{{ preview_item_size }}px';
+          div.style.border = '2px solid {{ preview_item_border_color }}';
+          div.innerHTML = `<img src="${item.image}" alt="${item.title}">`;
+          previewItems.appendChild(div);
+          itemCount++;
+        }
+      }
+      totalPrice += item.price * item.qty;
+    });
+
+    while (itemCount < maxSelections) {
+      if (itemCount > 0) {
+        const plus = document.createElement('span');
+        plus.className = 'preview-plus';
+        plus.textContent = '+';
+        previewItems.appendChild(plus);
+      }
+      const div = document.createElement('div');
+      div.className = 'preview-item-placeholder';
+      div.style.width = '{{ preview_item_size }}px';
+      div.style.height = '{{ preview_item_size }}px';
+      div.style.border = '2px dashed {{ preview_item_border_color }}';
+      div.style.color = '{{ preview_item_border_color }}';
+      div.textContent = '+';
+      previewItems.appendChild(div);
+      itemCount++;
+    }
+
+    const discountedPrice = totalPrice;
+    document.getElementById('previewOriginal').textContent = 'Rs.' + totalPrice.toFixed(2);
+    document.getElementById('previewDiscounted').textContent = 'Rs.' + discountedPrice.toFixed(2);
+    
+    if (Object.keys(selected).length > 0) {
+      document.getElementById('previewPricing').style.display = 'flex';
+      if (checkoutBtn) checkoutBtn.disabled = false;
+    } else {
+      document.getElementById('previewPricing').style.display = 'none';
+      if (checkoutBtn) checkoutBtn.disabled = true;
+    }
+  }
+
+  if (checkoutBtn) {
+    checkoutBtn.addEventListener('click', () => {
+      window.location.href = '/checkout';
+    });
+  }
+
+  // Stick preview bar to bottom after it leaves the top of the viewport
+  window.addEventListener('scroll', () => {
+    if (!previewBar) return;
+    const shouldFix = window.scrollY > previewBarTop;
+    previewBar.classList.toggle('preview-fixed', shouldFix);
+  });
+
+  document.querySelectorAll('.combo-card').forEach(card => {
+    let id = card.dataset.id;
+    let price = parseFloat(card.dataset.price);
+    let image = card.dataset.image;
+    const baseTitle = card.dataset.baseTitle || card.dataset.title;
+    let title = card.dataset.title;
+    const priceEl = card.querySelector('.product-price');
+    const variantSelect = card.querySelector('.variant-select');
+    
+    const decBtn = card.querySelector('.decrement-btn');
+    const incBtn = card.querySelector('.increment-btn');
+    const qtyDisplay = card.querySelector('.qty-display-val');
+    const addBtn = card.querySelector('.add-to-cart-btn');
+
+    function applyVariant(option) {
+      if (!option) return;
+      const prevId = id;
+      const newId = option.value;
+      const newPrice = parseFloat(option.dataset.price);
+      const newImage = option.dataset.image;
+      const variantTitle = option.dataset.title || option.textContent;
+      const newTitle = `${baseTitle} - ${variantTitle}`;
+
+      // Remove any existing selection tied to previous variant
+      if (selected[prevId]) delete selected[prevId];
+
+      id = newId;
+      price = newPrice;
+      image = newImage;
+      title = newTitle;
+      card.dataset.id = newId;
+      card.dataset.price = newPrice;
+      card.dataset.image = newImage;
+      card.dataset.title = newTitle;
+      if (priceEl) {
+        priceEl.textContent = option.dataset.display || ('$' + newPrice.toFixed(2));
+      }
+
+      // Reset UI for this card
+      qtyDisplay.textContent = '0';
+      decBtn.disabled = true;
+      addBtn.textContent = 'Add';
+      addBtn.classList.remove('added');
+      card.classList.remove('selected');
+      updatePreview();
+    }
+
+    if (variantSelect) {
+      applyVariant(variantSelect.options[variantSelect.selectedIndex]);
+      variantSelect.addEventListener('change', () => {
+        applyVariant(variantSelect.options[variantSelect.selectedIndex]);
+      });
+    }
+
+    function updateCard() {
+      const item = selected[id];
+      const qty = item ? item.qty : 0;
+      qtyDisplay.textContent = qty;
+      decBtn.disabled = qty === 0;
+      card.classList.toggle('selected', qty > 0);
+      addBtn.textContent = qty > 0 ? 'Added' : 'Add';
+      addBtn.classList.toggle('added', qty > 0);
+      updatePreview();
+    }
+
+    incBtn.addEventListener('click', () => {
+      const currentTotal = Object.values(selected).reduce((sum, item) => sum + item.qty, 0);
+      if (currentTotal >= maxSelections) return;
+      
+      if (!selected[id]) {
+        selected[id] = { price, image, title, qty: 0 };
+      }
+      selected[id].qty++;
+      updateCard();
+    });
+
+    decBtn.addEventListener('click', () => {
+      if (selected[id]) {
+        selected[id].qty--;
+        if (selected[id].qty === 0) delete selected[id];
+        updateCard();
+      }
+    });
+
+    addBtn.addEventListener('click', () => {
+      const currentTotal = Object.values(selected).reduce((sum, item) => sum + item.qty, 0);
+      if (currentTotal >= maxSelections) return;
+      if (!selected[id]) {
+        selected[id] = { price, image, title, qty: 0 };
+      }
+      selected[id].qty++;
+      updateCard();
+    });
+  });
+
+  updatePreview();
+});
+</script>

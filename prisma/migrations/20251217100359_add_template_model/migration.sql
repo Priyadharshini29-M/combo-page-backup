@@ -1,0 +1,8 @@
+-- CreateTable
+CREATE TABLE "Template" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "title" TEXT NOT NULL,
+    "config" JSONB NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
